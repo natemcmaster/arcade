@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Licensed to the .NET Foundation under one or more agreements. The .NET Foundation licenses this file to you under the MIT license. See the LICENSE file in the project root for more information. -->
+<Project>
+
+  <ItemGroup>
+    <MissingRequiredProperty Include="FrameworkName" Condition="'$(FrameworkName)' == ''" />
+    <MissingRequiredProperty Include="TargetFramework" Condition="'$(TargetFramework)' == ''" />
+  </ItemGroup>
+
+  <Choose>
+    <When Condition="'$(FrameworkPackageType)' == 'TargetingPack'">
+      <PropertyGroup>
+        <PackageId Condition="'$(PackageId)' == ''">$(FrameworkName).Ref</PackageId>
+
+        <!-- There are no symbols for reference assemblies, so don't produce a symbols package. -->
+        <IncludeSymbols>false</IncludeSymbols>
+
+        <RefAssemblyPackagePath>ref/$(TargetFramework)/</RefAssemblyPackagePath>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+
+        <GenerateDependencyFile>false</GenerateDependencyFile>
+      </PropertyGroup>
+    </When>
+
+    <When Condition="'$(FrameworkPackageType)' == 'RuntimePack'">
+      <PropertyGroup>
+        <PackageId Condition="'$(PackageId)' == ''">$(FrameworkName).Runtime.$(RuntimeIdentifier)</PackageId>
+        <!-- Even though RuntimeIdentifier should be set, runtime pack projects are not self-contained projects -->
+        <SelfContained>false</SelfContained>
+        
+        <!-- NuGet appends target framework to this value. Example: runtimes/win-x64/lib/netcoreapp3.0/ -->
+        <BuildOutputTargetFolder>runtimes/$(RuntimeIdentifier)/lib/</BuildOutputTargetFolder>
+        <!-- Target framework is not append to this because native assets to not have a target framework. -->
+        <NativeAssetsPackagePath>runtimes/$(RuntimeIdentifier)/native/</NativeAssetsPackagePath>
+        
+        <!-- Setting this suppresses getting documentation .xml files from project references in the shared runtime output. -->
+        <AllowedReferenceRelatedFileExtensions>.pdb</AllowedReferenceRelatedFileExtensions>
+
+        <!-- Pack .map files in symbols package (native symbols for Linux) -->
+        <AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder>$(AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder);.map</AllowedOutputExtensionsInSymbolsPackageBuildOutputFolder>
+            
+        <!-- Always generated, even though output type == Library -->
+        <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+        <ProjectRuntimeConfigFileName>$(FrameworkName).runtimeconfig.json</ProjectRuntimeConfigFileName>
+
+        <!-- There is no way to suppress the .dev.runtimeconfig.json generation. -->
+        <ProjectRuntimeConfigDevFilePath>$(IntermediateOutputPath)ignoreme.dev.runtimeconfig.json</ProjectRuntimeConfigDevFilePath>
+      </PropertyGroup>
+      
+      <ItemGroup>
+        <MissingRequiredProperty Include="RuntimeIdentifier" Condition="'$(RuntimeIdentifier)' == ''" />
+      </ItemGroup>
+    </When>
+
+    <Otherwise>
+      <ItemGroup>
+        <MissingRequiredProperty Include="FrameworkPackageType" />
+      </ItemGroup>
+    </Otherwise>
+  </Choose>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+  <Import Project="Runtime.targets" Condition="'$(FrameworkPackageType)' == 'RuntimePack'" />
+
+  <Target Name="_CheckForMissingRequiredProperties" BeforeTargets="_CheckForInvalidConfigurationAndPlatform">
+    <Error Text="Missing required project property: %(MissingRequiredProperty.Identity)" Condition="'%(MissingRequiredProperty.Identity)' != ''" />
+  </Target>
+  
+  <!-- Override the default MSBuild targets so that nothing is returned from the project since it represents a collection of assemblies. -->
+  <Target Name="GetTargetPath" />
+  <Target Name="Build" DependsOnTargets="$(BuildDependsOn)">
+    <Message Importance="High" Text="$(MSBuildProjectName) -> $(TargetDir)" />
+  </Target>
+
+  <!-- There is no .dll file. This clears the default value for the build output group. -->
+  <ItemGroup>
+    <BuiltProjectOutputGroupKeyOutput Remove="@(BuiltProjectOutputGroupKeyOutput)" />
+  </ItemGroup>
+
+  <!-- These projects don't compile anything. -->
+  <Target Name="CoreCompile" />
+
+</Project>

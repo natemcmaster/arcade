@@ -1,0 +1,47 @@
+<Project>
+
+  <!-- Target chain -->
+  <PropertyGroup>
+    <CoreBuildDependsOn>
+      $(CoreBuildDependsOn);
+      GenerateFrameworkRuntimeManifests;
+    </CoreBuildDependsOn>
+
+    <GenerateFrameworkRuntimeManifestsDependsOn>
+      $(GenerateFrameworkRuntimeManifestsDependsOn);
+      ResolveReferences;
+    </GenerateFrameworkRuntimeManifestsDependsOn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <FrameworkDepsOutputPath Condition="'$(FrameworkDepsOutputPath)' == ''">$(TargetDir)$(FrameworkName).deps.json</FrameworkDepsOutputPath>
+    <PlatformManifestOutputPath Condition="'$(PlatformManifestOutputPath)' == ''">$(IntermediateOutputPath)PlatformManifest.txt</PlatformManifestOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="$(FrameworkDepsOutputPath)" />
+    <BuiltProjectOutputGroupOutput Include="$(FrameworkDepsOutputPath)" />
+    <GenerateRuntimeConfigurationFilesInputs Include="$(MSBuildAllProjects)" />
+  </ItemGroup>
+
+  <Target Name="GenerateFrameworkRuntimeManifests"
+          DependsOnTargets="ResolveReferences"
+          Inputs="@(ReferenceCopyLocalPaths);$(ProjectAssetsFile);$(MSBuildAllProjects)"
+          Outputs="$(FrameworkDepsOutputPath);$(PlatformManifestOutputPath)">
+
+    <ItemGroup>
+      <_RuntimeReference Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Extension)' != '.pdb' AND '%(ReferenceCopyLocalPaths.Extension)' != '.map'" />
+    </ItemGroup>
+
+    <GenerateFrameworkRuntimeManifests
+      TargetFrameworkMoniker="$(TargetFrameworkMoniker)"
+      FrameworkName="$(FrameworkName)"
+      FrameworkVersion="$(PackageVersion)"
+      RuntimeReferences="@(_RuntimeReference)"
+      RuntimeIdentifier="$(RuntimeIdentifier)"
+      RuntimePackageName="$(PackageId)"
+      DepsOutputPath="$(FrameworkDepsOutputPath)"
+      PlatformManifestOutputPath="$(PlatformManifestOutputPath)"/>
+  </Target>
+
+</Project>
